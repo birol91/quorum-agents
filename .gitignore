@@ -1,0 +1,30 @@
+# Secrets
+.env
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Build output
+dist/
+out/
+release/
+
+# Runtime decision store + screenshots
+example/.quorum/
+.quorum/
+*.png
+!docs/*.png
+!docs/*.gif
+!build/icon.png
+!src/renderer/logo.png
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# OS
+.DS_Store
+
+# Logs
+*.log
