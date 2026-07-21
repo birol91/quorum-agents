@@ -47,6 +47,8 @@ export interface SdkSessionOptions {
   name: string;
   systemPrompt: string;
   model?: string;
+  /** Reasoning effort (SDK default: 'high'); unsupported models downgrade silently. */
+  effort?: string;
   cwd?: string;
   /** Resume a previous conversation by session id (official persistence). */
   resume?: string;
@@ -116,6 +118,7 @@ export class SdkSession extends EventEmitter {
           cwd: opts.cwd ?? process.cwd(),
           env: cleanEnv(),
           model: opts.model ?? 'haiku',
+          effort: opts.effort,
           systemPrompt: opts.systemPrompt,
           permissionMode: 'default',
           strictMcpConfig: true,

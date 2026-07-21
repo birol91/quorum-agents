@@ -13,6 +13,10 @@ export type PermissionMode = 'read' | 'write' | 'both';
 export const MODELS = ['haiku', 'sonnet', 'opus', 'fable'] as const;
 export type ModelName = (typeof MODELS)[number];
 
+/** Reasoning effort passed to the Agent SDK; 'high' is the SDK default. */
+export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+export type EffortLevel = (typeof EFFORTS)[number];
+
 /** UI label → value the `claude` CLI accepts (alias, or full id where no alias). */
 export const MODEL_CLI_ID: Record<ModelName, string> = {
   haiku: 'haiku',
@@ -28,6 +32,7 @@ export interface AgentView {
   state: 'idle' | 'busy' | 'offline';
   sessionId: string | null;
   model: ModelName;
+  effort: EffortLevel;
   permissionMode: PermissionMode;
   usage: { in: number; out: number; turns: number };
 }
@@ -94,7 +99,7 @@ export interface IpcContract {
   // Change an agent's model and/or permission mode; restarts its session
   // (via --resume so history is preserved).
   'quorum:updateAgent': {
-    input: { name: string; model?: ModelName; permissionMode?: PermissionMode };
+    input: { name: string; model?: ModelName; permissionMode?: PermissionMode; effort?: EffortLevel };
     output: { ok: true };
   };
   // Marketplace: the full catalog of installed agent definitions (metadata only).

@@ -8,6 +8,7 @@ const TeamMemberSchema = z.object({
   desc: z.string(),
   persona: z.string(),
   model: z.string().default('haiku'),
+  effort: z.enum(['low', 'medium', 'high', 'xhigh', 'max']).default('high'),
   lead: z.boolean().default(false),
   permissionMode: z.enum(['read', 'write', 'both']).default('write'),
 });

@@ -6,8 +6,8 @@ import { buildSystemPrompt, DECISION_PROTOCOL, teamMemoryDigest } from '../proto
 import { quorumServerFor, QUORUM_TOOL_NAMES } from '../tools.ts';
 import { DecisionStore } from '../decisions.ts';
 import { TaskBoard } from '../tasks.ts';
-import type { AgentView, LayoutMap, ModelName, PermissionMode, PermissionRequest, QuorumEvent } from '../shared/ipc.ts';
-import { MODELS, MODEL_CLI_ID } from '../shared/ipc.ts';
+import type { AgentView, EffortLevel, LayoutMap, ModelName, PermissionMode, PermissionRequest, QuorumEvent } from '../shared/ipc.ts';
+import { MODELS, MODEL_CLI_ID, EFFORTS } from '../shared/ipc.ts';
 import type { BusMessage } from '../types.ts';
 import { PermissionBroker } from './permissions.ts';
 import { readProjectClaudeMd } from './claudeMd.ts';
@@ -23,8 +23,8 @@ export class QuorumManager {
   readonly store: DecisionStore;
   readonly tasks: TaskBoard;
   private readonly sessions = new Map<string, SdkSession>();
-  // Per-agent settings, mutable via updateAgent (model + permission mode).
-  private readonly settings = new Map<string, { model: ModelName; permissionMode: PermissionMode }>();
+  // Per-agent settings, mutable via updateAgent (model + effort + permission mode).
+  private readonly settings = new Map<string, { model: ModelName; effort: EffortLevel; permissionMode: PermissionMode }>();
   private readonly broker: PermissionBroker;
   private readonly emit: (e: QuorumEvent) => void;
 
@@ -52,7 +52,8 @@ export class QuorumManager {
     }
     for (const m of team.members) {
       const model = (MODELS as readonly string[]).includes(m.model) ? (m.model as ModelName) : 'haiku';
-      this.settings.set(m.name, { model, permissionMode: m.permissionMode ?? 'write' });
+      const effort = (EFFORTS as readonly string[]).includes(m.effort) ? (m.effort as EffortLevel) : 'high';
+      this.settings.set(m.name, { model, effort, permissionMode: m.permissionMode ?? 'write' });
     }
     this.broker = new PermissionBroker(
       (r) => emit({ type: 'permissionRequest', request: r }),
@@ -103,6 +104,7 @@ export class QuorumManager {
     const session = new SdkSession({
       name,
       model: MODEL_CLI_ID[settings.model],
+      effort: settings.effort,
       cwd: this.cwd,
       resume,
       // Re-read CLAUDE.md on every spawn so edits reach new/restarted agents.
@@ -149,6 +151,7 @@ export class QuorumManager {
       const st = this.settings.get(m.name);
       if (!st) continue;
       m.model = st.model;
+      m.effort = st.effort;
       m.permissionMode = st.permissionMode;
     }
     saveTeam(join(this.stateDir, 'team.json'), this.team);
@@ -165,6 +168,7 @@ export class QuorumManager {
         state: s?.state ?? 'offline',
         sessionId: s?.sessionId ?? null,
         model: st.model,
+        effort: st.effort,
         permissionMode: st.permissionMode,
         usage: s?.usage ?? { in: 0, out: 0, turns: 0 },
       };
@@ -201,21 +205,24 @@ export class QuorumManager {
   }
 
   /**
-   * Change an agent's model and/or permission mode. Permission mode takes
-   * effect immediately (the canUseTool callback reads it live). A model change
-   * requires a fresh session, so we close the old one and resume it with the
-   * new model — conversation history is preserved via --resume.
+   * Change an agent's model, effort and/or permission mode. Permission mode
+   * takes effect immediately (the canUseTool callback reads it live). Model
+   * and effort are query-start options, so changing either requires a fresh
+   * session — we close the old one and resume it, history preserved via
+   * --resume.
    */
-  async updateAgent(name: string, model?: ModelName, permissionMode?: PermissionMode): Promise<void> {
+  async updateAgent(name: string, model?: ModelName, permissionMode?: PermissionMode, effort?: EffortLevel): Promise<void> {
     const st = this.settings.get(name);
     if (!st) return;
     const modelChanged = model !== undefined && model !== st.model;
+    const effortChanged = effort !== undefined && effort !== st.effort;
     if (permissionMode !== undefined) st.permissionMode = permissionMode;
     if (model !== undefined) st.model = model;
+    if (effort !== undefined) st.effort = effort;
 
     // Only restart a real running session. In no-sessions mode we just record
-    // the new model so it applies whenever sessions do start.
-    if (modelChanged && this.started) {
+    // the new settings so they apply whenever sessions do start.
+    if ((modelChanged || effortChanged) && this.started) {
       const old = this.sessions.get(name);
       const resume = old?.sessionId ?? undefined;
       if (old) await old.close().catch(() => {});
@@ -252,8 +259,8 @@ export class QuorumManager {
     if (!this.bus.addRosterEntry({ name, desc, lead: false })) {
       throw new Error(`Team is full — max ${MAX_AGENTS} agents. Remove one before adding.`);
     }
-    this.team.members.push({ name, desc, persona: body, model, lead: false, permissionMode: 'write' });
-    this.settings.set(name, { model, permissionMode: 'write' });
+    this.team.members.push({ name, desc, persona: body, model, effort: 'high', lead: false, permissionMode: 'write' });
+    this.settings.set(name, { model, effort: 'high', permissionMode: 'write' });
     this.persistTeam();
 
     if (this.started) await this.spawnOne(name);

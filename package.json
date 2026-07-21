@@ -1,7 +1,7 @@
 {
   "name": "quorum",
   "private": true,
-  "version": "1.9.0",
+  "version": "2.0.0",
   "type": "module",
   "description": "Run your Claude Code agents as a real team. Your editor session is the lead; specialist agents message each other, debate, decide and remember — visualized live on a desktop canvas. Built only on documented interfaces, runs entirely on your Claude subscription (no API costs).",
   "main": "dist/main/index.js",

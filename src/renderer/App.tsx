@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invoke, onEvent } from './bridge.ts';
 import { apply, clearTerminal, getState, hydrate, setLayout, useStore } from './store.ts';
-import type { AgentView, CatalogAgent, LayoutMap, ModelName, PermissionMode } from '../shared/ipc.ts';
-import { MODELS } from '../shared/ipc.ts';
+import type { AgentView, CatalogAgent, EffortLevel, LayoutMap, ModelName, PermissionMode } from '../shared/ipc.ts';
+import { MODELS, EFFORTS } from '../shared/ipc.ts';
 import type { BusMessage } from '../types.ts';
 
 export function App(): JSX.Element {
@@ -410,6 +410,9 @@ function AgentInspector({ name, onClose }: { name: string; onClose: () => void }
   const setMode = (permissionMode: PermissionMode): void => {
     invoke('quorum:updateAgent', { name, permissionMode }).catch(() => {});
   };
+  const setEffort = (effort: EffortLevel): void => {
+    invoke('quorum:updateAgent', { name, effort }).catch(() => {});
+  };
   const remove = (): void => {
     if (!window.confirm(`Remove ${name} from the team? Its session ends and it leaves the canvas.`)) return;
     invoke('quorum:removeAgent', { name }).catch(() => {});
@@ -435,6 +438,20 @@ function AgentInspector({ name, onClose }: { name: string; onClose: () => void }
             ))}
           </div>
           <div className="hint">Changing the model restarts this session (history preserved via --resume).</div>
+        </div>
+
+        <div className="field">
+          <label>Effort</label>
+          <div className="seg">
+            {EFFORTS.map((e) => (
+              <button key={e} className={agent.effort === e ? 'on' : ''} onClick={() => setEffort(e)}>
+                {e}
+              </button>
+            ))}
+          </div>
+          <div className="hint">
+            Reasoning depth (SDK default: high). xhigh/max need recent models — others silently fall back. Changing it restarts the session.
+          </div>
         </div>
 
         <div className="field">

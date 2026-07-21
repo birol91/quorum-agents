@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.0.0
+- Per-agent **reasoning effort** selection (`low / medium / high / xhigh / max`) next to the model picker in the inspector. Agents previously always ran at the SDK default (`high`); effort is now persisted per agent in `team.json` and passed to the Agent SDK at spawn. Changing it restarts the session with history preserved via `--resume`; models without support for a level fall back silently.
+
 ## 1.9.0
 - The Team Lead's interrupt now propagates to the team: when the lead abandons an in-flight bridge call (ESC in Claude Code sends MCP's cancelled notification; killed clients tear the connection), every busy agent is interrupted and its reply debt cancelled — same semantics as pressing ESC in the app. Replies collected by an abandoned long-poll are requeued for the next `replies()` instead of being dropped.
 - Terminal windows keep auto-scrolling past the 300-entry feed cap (the scroll effect was keyed on feed length, which stops changing once the cap trims history).

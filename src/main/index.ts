@@ -148,12 +148,13 @@ function registerIpc(): void {
     return { ok: true as const };
   });
   handle('quorum:updateAgent', async (input) => {
-    const { name, model, permissionMode } = input as {
+    const { name, model, permissionMode, effort } = input as {
       name: string;
       model?: import('../shared/ipc.ts').ModelName;
       permissionMode?: import('../shared/ipc.ts').PermissionMode;
+      effort?: import('../shared/ipc.ts').EffortLevel;
     };
-    await manager!.updateAgent(name, model, permissionMode);
+    await manager!.updateAgent(name, model, permissionMode, effort);
     return { ok: true as const };
   });
   handle('marketplace:list', () => ({ agents: readAgentCatalog(AGENTS_DIR) }));
