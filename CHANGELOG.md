@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.0
+- The Team Lead's interrupt now propagates to the team: when the lead abandons an in-flight bridge call (ESC in Claude Code sends MCP's cancelled notification; killed clients tear the connection), every busy agent is interrupted and its reply debt cancelled — same semantics as pressing ESC in the app. Replies collected by an abandoned long-poll are requeued for the next `replies()` instead of being dropped.
+- Terminal windows keep auto-scrolling past the 300-entry feed cap (the scroll effect was keyed on feed length, which stops changing once the cap trims history).
+
 ## 1.8.0
 - Per-agent terminal windows: pop out a live traffic stream for any agent, tethered to its block with a curved connector that glows while the agent works. Each terminal has its own composer for one-on-one conversation, sticky auto-scroll with a "↓ latest" escape hatch, drag/resize.
 

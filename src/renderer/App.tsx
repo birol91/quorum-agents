@@ -174,9 +174,11 @@ function AgentTerminal({
   const stick = useRef(true);
   const [pinned, setPinned] = useState(true);
 
+  // Depend on feed identity, not length: the feed is capped at TERM_CAP, so a
+  // busy agent's push+shift keeps length constant and a length dep goes dead.
   useEffect(() => {
     if (stick.current) logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
-  }, [feed.length]);
+  }, [feed]);
 
   const onLogScroll = (): void => {
     const el = logRef.current;

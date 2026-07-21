@@ -22,6 +22,12 @@ export interface BridgeDeps {
   projectDir: () => string;
   /** Fired on transitions of the lead's activity level. */
   onActivity?: (level: LeadLevel) => void;
+  /**
+   * Fired when the lead ABORTS an in-flight tool call (the user interrupted
+   * Claude Code mid-call): the client tears down the HTTP request before we
+   * could answer. First-party signal — our own endpoint's connection state.
+   */
+  onLeadInterrupt?: (tool: string) => void;
   trace?: (line: string) => void;
 }
 
@@ -46,8 +52,20 @@ export class QuorumBridge {
   private readonly claims = new Map<string, number>(); // session_id -> expiry
   private level: LeadLevel = 'off';
   private sweepTimer: NodeJS.Timeout | null = null;
+  // Bumped whenever the lead walks away mid-call; in-flight replies() compare
+  // epochs to know their response has no listener anymore.
+  private abortEpoch = 0;
 
   constructor(private readonly deps: BridgeDeps) {}
+
+  /** The lead abandoned an in-flight call (ESC / cancellation): stop the team. */
+  private leadWalkedAway(reason: string): void {
+    this.abortEpoch++;
+    this.deps.trace?.(`[bridge] lead ${reason} — interrupting the team`);
+    this.deps.onLeadInterrupt?.(reason);
+    // End pending long-polls immediately; their epoch check requeues drains.
+    for (const w of this.waiters.splice(0)) w();
+  }
 
   private computeLevel(): LeadLevel {
     if (this.inFlight > 0 || Date.now() < this.lingerUntil) return 'driving';
@@ -184,7 +202,15 @@ export class QuorumBridge {
     }
     if (name === 'replies') {
       const wait = Math.max(0, Math.min(Number(args.wait_seconds ?? 45), MAX_WAIT_S));
+      const epoch = this.abortEpoch;
       const msgs = await this.drain(wait * 1000);
+      // Delivery guarantee: if the lead walked away while we drained, this
+      // response goes nowhere — requeue so the NEXT replies() still delivers
+      // instead of silently dropping collected messages.
+      if (this.abortEpoch !== epoch) {
+        this.inbox.unshift(...msgs);
+        return JSON.stringify({ replies: [], busy: [] });
+      }
       // `busy` disambiguates an empty result: agents still working vs done.
       const busy = this.deps.roster().filter((a) => a.state === 'busy').map((a) => a.name);
       return JSON.stringify(
@@ -225,12 +251,31 @@ export class QuorumBridge {
               { name: 'quorum', version: '1.0.0' },
               { capabilities: { tools: {} } },
             );
+            // Which tool (if any) this request carries — needed to classify an
+            // aborted connection below. Body may be a JSON-RPC batch.
+            const rpcs = (Array.isArray(body) ? body : [body]) as { method?: string; params?: { name?: string } }[];
+            const toolName = rpcs.find((m) => m?.method === 'tools/call')?.params?.name;
+            // MCP's documented cancellation path: the client POSTs a
+            // notifications/cancelled instead of (or besides) dropping the
+            // connection. Either way the lead walked away mid-call.
+            if (rpcs.some((m) => m?.method === 'notifications/cancelled')) {
+              this.leadWalkedAway('cancelled its call');
+            }
             server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: this.tools() }));
             server.setRequestHandler(CallToolRequestSchema, async (r: { params: { name: string; arguments?: Record<string, unknown> } }) => ({
               content: [{ type: 'text', text: await this.callTool(r.params.name, r.params.arguments ?? {}) }],
             }));
             const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
             res.on('close', () => {
+              // Closed WITHOUT a written response = the client tore the call
+              // down mid-flight (Claude Code's ESC aborts the HTTP request).
+              // The lead let go of the wheel — stop the team. (A client-side
+              // request TIMEOUT aborts the same way; replies' 45s default is
+              // chosen to stay under Claude Code's MCP timeout, and the tool
+              // description tells the lead to keep wait_seconds below it.)
+              if (!res.writableEnded && toolName) {
+                this.leadWalkedAway(`aborted ${toolName} mid-call`);
+              }
               void transport.close();
               void server.close();
             });

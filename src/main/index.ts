@@ -76,6 +76,13 @@ const bridge = new QuorumBridge({
   roster: () => manager?.roster() ?? [],
   projectDir: () => manager?.snapshot().project.dir ?? '',
   onActivity: (level) => emit({ type: 'leadState', level }),
+  // The lead interrupted its in-flight bridge call (ESC in Claude Code):
+  // mirror the in-app ESC — abort busy agents, cancel their reply debts.
+  onLeadInterrupt: () => {
+    void manager?.interruptBusy().then((names) => {
+      if (names.length > 0) console.log(`[bridge] interrupted with the lead: ${names.join(', ')}`);
+    });
+  },
   trace: (l) => console.log(l),
 });
 
