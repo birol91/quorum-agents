@@ -1,0 +1,426 @@
+<title>Quorum Mimarisi</title>
+<style>
+  /* ---------- tokens ---------- */
+  :root {
+    --bg: #F5F3EF;
+    --surface: #FFFFFF;
+    --surface-2: #EDEAE3;
+    --ink: #26221D;
+    --muted: #6E675E;
+    --line: #DDD6CB;
+    --accent: #C25E3F;
+    --accent-soft: #F3DED5;
+    --user: #3E6B8F;
+    --user-soft: #DEE8F0;
+    --ok: #3F8A62;
+    --ok-soft: #DDEBE2;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #191713;
+      --surface: #211E19;
+      --surface-2: #2A2620;
+      --ink: #EAE4DA;
+      --muted: #9A9186;
+      --line: #3A352D;
+      --accent: #E08560;
+      --accent-soft: #3C2A21;
+      --user: #7FA9CC;
+      --user-soft: #22303C;
+      --ok: #6CBF93;
+      --ok-soft: #1F332A;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F5F3EF; --surface: #FFFFFF; --surface-2: #EDEAE3;
+    --ink: #26221D; --muted: #6E675E; --line: #DDD6CB;
+    --accent: #C25E3F; --accent-soft: #F3DED5;
+    --user: #3E6B8F; --user-soft: #DEE8F0;
+    --ok: #3F8A62; --ok-soft: #DDEBE2;
+  }
+  :root[data-theme="dark"] {
+    --bg: #191713; --surface: #211E19; --surface-2: #2A2620;
+    --ink: #EAE4DA; --muted: #9A9186; --line: #3A352D;
+    --accent: #E08560; --accent-soft: #3C2A21;
+    --user: #7FA9CC; --user-soft: #22303C;
+    --ok: #6CBF93; --ok-soft: #1F332A;
+  }
+
+  /* ---------- base ---------- */
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.6;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
+  .prose { max-width: 65ch; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 12px;
+  }
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(24px, 4vw, 34px);
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  h2 {
+    font-family: var(--mono);
+    font-size: 17px;
+    letter-spacing: 0.02em;
+    margin: 56px 0 14px;
+  }
+  h2::before { content: "// "; color: var(--accent); }
+  p { margin: 0 0 14px; }
+  .lede { font-size: 17px; color: var(--ink); }
+  .muted { color: var(--muted); }
+  code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--surface-2);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+
+  /* ---------- scenario buttons ---------- */
+  .scen-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 0; }
+  .scen {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    letter-spacing: 0.03em;
+    padding: 8px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .scen:hover { border-color: var(--accent); }
+  .scen[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .scen:focus-visible, a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* ---------- diagram ---------- */
+  .diagram-shell {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    margin-top: 14px;
+    overflow-x: auto;
+  }
+  .diagram-inner { min-width: 700px; }
+  svg { display: block; width: 100%; height: auto; }
+
+  .edge {
+    fill: none;
+    stroke: var(--line);
+    stroke-width: 1.5;
+    opacity: 0.55;
+    transition: stroke 0.25s, opacity 0.25s, stroke-width 0.25s;
+  }
+  .edge.active { opacity: 1; stroke-width: 2.5; }
+  .edge.active[data-kind="user"]     { stroke: var(--user); }
+  .edge.active[data-kind="mesh"]     { stroke: var(--accent); }
+  .edge.active[data-kind="decision"] { stroke: var(--ok); }
+  .edge.hidden-edge { opacity: 0; }
+
+  .node-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; rx: 10; }
+  .node.dim { opacity: 0.45; }
+  .node { transition: opacity 0.25s; }
+  .node-title { font-family: var(--mono); font-size: 13.5px; font-weight: 600; fill: var(--ink); }
+  .node-sub   { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); }
+  .node-user .node-box { stroke: var(--user); stroke-width: 2; fill: var(--user-soft); }
+  .node-user .node-title { fill: var(--user); }
+  .node-dec .node-box { stroke: var(--ok); stroke-dasharray: 4 3; fill: var(--ok-soft); }
+  .node-dec .node-title { fill: var(--ok); font-size: 12px; }
+  .badge-box { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1; rx: 8; }
+  .badge-text { font-family: var(--mono); font-size: 9.5px; fill: var(--accent); letter-spacing: 0.04em; }
+
+  .dot { display: none; }
+  .dot.on { display: block; }
+  .dot[data-kind="user"]     { fill: var(--user); }
+  .dot[data-kind="mesh"]     { fill: var(--accent); }
+  .dot[data-kind="decision"] { fill: var(--ok); }
+  @media (prefers-reduced-motion: reduce) {
+    .dot { display: none !important; }
+    .edge, .node, .scen { transition: none; }
+  }
+
+  .caption {
+    border-top: 1px solid var(--line);
+    padding: 14px 18px 16px;
+    font-size: 14.5px;
+    color: var(--ink);
+    min-height: 3.2em;
+  }
+  .caption strong { font-family: var(--mono); font-size: 13px; color: var(--accent); }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 18px;
+    font-family: var(--mono); font-size: 11.5px; color: var(--muted);
+    margin-top: 10px;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .swatch { width: 18px; height: 0; border-top: 2.5px solid; border-radius: 2px; }
+  .sw-user { border-color: var(--user); }
+  .sw-mesh { border-color: var(--accent); }
+  .sw-dec  { border-color: var(--ok); }
+
+  /* ---------- Q&A ---------- */
+  .qa { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 6px; }
+  .qa-card {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    padding: 16px 18px;
+  }
+  .qa-card h3 {
+    font-family: var(--mono);
+    font-size: 13px;
+    margin: 0 0 8px;
+    color: var(--accent);
+  }
+  .qa-card p { font-size: 14px; margin: 0; }
+  .qa-card .ans { font-weight: 650; }
+
+  /* ---------- layers ---------- */
+  .layers { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 6px; }
+  .layer {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 14px 16px;
+  }
+  .layer h3 { font-family: var(--mono); font-size: 13px; margin: 0 0 6px; }
+  .layer p { font-size: 13.5px; color: var(--muted); margin: 0; }
+
+  .foot {
+    margin-top: 56px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Quorum · Mimari Tasarım</p>
+  <h1>Herkes herkesle konuşur.<br>Lead bir rol, kural değil.</h1>
+  <div class="prose">
+    <p class="lede">Quorum'da hiyerarşi yapıya gömülü değil: <strong>sen dört ajanın dördüyle de doğrudan konuşursun</strong>, ajanlar da birbirleriyle. "Koordinatör" istersen bir ajana verdiğin opsiyonel bir şapka — büyük işlerde delegasyonu o yapar, ama seni hiçbir zaman aradan çıkarmaz.</p>
+    <p class="muted">Aşağıdaki senaryolara tıklayıp mesajın hangi yolu izlediğini gör.</p>
+  </div>
+
+  <div class="scen-row" role="group" aria-label="Senaryo seçimi">
+    <button class="scen" data-s="direct" aria-pressed="true">1 · Doğrudan konuşma</button>
+    <button class="scen" data-s="lead" aria-pressed="false">2 · Koordinatöre delegasyon</button>
+    <button class="scen" data-s="peer" aria-pressed="false">3 · Eşler arası müzakere</button>
+    <button class="scen" data-s="decision" aria-pressed="false">4 · Karar &amp; eskalasyon</button>
+  </div>
+
+  <div class="diagram-shell">
+    <div class="diagram-inner">
+      <svg viewBox="0 0 880 505" role="img" aria-label="Quorum topolojisi: kullanıcı tüm ajanlarla, ajanlar birbirleriyle doğrudan bağlantılı">
+        <!-- edges (drawn first, under nodes) -->
+        <path id="e-u-lead" class="edge" data-kind="user" d="M 180 245 C 300 160, 380 90, 483 72"/>
+        <path id="e-u-se"   class="edge" data-kind="user" d="M 180 255 L 328 250"/>
+        <path id="e-u-de"   class="edge" data-kind="user" d="M 180 272 C 400 345, 550 330, 688 268"/>
+        <path id="e-u-ds"   class="edge" data-kind="user" d="M 180 265 C 300 340, 380 400, 483 428"/>
+        <path id="e-lead-se" class="edge" data-kind="mesh" d="M 520 100 L 412 220"/>
+        <path id="e-lead-de" class="edge" data-kind="mesh" d="M 600 100 L 758 220"/>
+        <path id="e-lead-ds" class="edge" data-kind="mesh" d="M 560 100 L 560 400"/>
+        <path id="e-se-de"   class="edge" data-kind="mesh" d="M 482 250 L 688 250"/>
+        <path id="e-se-ds"   class="edge" data-kind="mesh" d="M 412 280 L 508 400"/>
+        <path id="e-de-ds"   class="edge" data-kind="mesh" d="M 758 280 L 630 412"/>
+        <path id="e-de-dec"  class="edge hidden-edge" data-kind="decision" d="M 770 280 L 776 413"/>
+        <path id="e-se-u"    class="edge hidden-edge" data-kind="decision" d="M 328 240 C 280 218, 230 224, 182 242"/>
+
+        <!-- moving dots -->
+        <circle class="dot" data-for="e-u-lead" data-kind="user" r="4.5">
+          <animateMotion dur="2s" repeatCount="indefinite"><mpath href="#e-u-lead"/></animateMotion>
+        </circle>
+        <circle class="dot" data-for="e-u-se" data-kind="user" r="4.5">
+          <animateMotion dur="1.6s" repeatCount="indefinite"><mpath href="#e-u-se"/></animateMotion>
+        </circle>
+        <circle class="dot" data-for="e-u-de" data-kind="user" r="4.5">
+          <animateMotion dur="2.4s" repeatCount="indefinite"><mpath href="#e-u-de"/></animateMotion>
+        </circle>
+        <circle class="dot" data-for="e-u-ds" data-kind="user" r="4.5">
+          <animateMotion dur="2s" repeatCount="indefinite"><mpath href="#e-u-ds"/></animateMotion>
+        </circle>
+        <circle class="dot" data-for="e-lead-se" data-kind="mesh" r="4.5">
+          <animateMotion dur="1.7s" begin="0.4s" repeatCount="indefinite"><mpath href="#e-lead-se"/></animateMotion>
+        </circle>
+        <circle class="dot" data-for="e-lead-de" data-kind="mesh" r="4.5">
+          <animateMotion dur="1.7s" begin="0.8s" repeatCount="indefinite"><mpath href="#e-lead-de"/></animateMotion>
+        </circle>
+        <circle class="dot" data-for="e-lead-ds" data-kind="mesh" r="4.5">
+          <animateMotion dur="1.7s" begin="1.2s" repeatCount="indefinite"><mpath href="#e-lead-ds"/></animateMotion>
+        </circle>
+        <circle class="dot" data-for="e-se-de" data-kind="mesh" r="4.5">
+          <animateMotion dur="1.5s" repeatCount="indefinite" keyPoints="0;1;0" keyTimes="0;0.5;1" calcMode="linear"><mpath href="#e-se-de"/></animateMotion>
+        </circle>
+        <circle class="dot" data-for="e-de-dec" data-kind="decision" r="4.5">
+          <animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#e-de-dec"/></animateMotion>
+        </circle>
+        <circle class="dot" data-for="e-se-u" data-kind="decision" r="4.5">
+          <animateMotion dur="1.8s" begin="0.6s" repeatCount="indefinite"><mpath href="#e-se-u"/></animateMotion>
+        </circle>
+
+        <!-- nodes -->
+        <g class="node node-user" id="n-user">
+          <rect class="node-box" x="40" y="228" width="140" height="64" rx="10"/>
+          <text class="node-title" x="110" y="255" text-anchor="middle">SEN</text>
+          <text class="node-sub" x="110" y="274" text-anchor="middle">sohbet · UI</text>
+        </g>
+
+        <g class="node" id="n-lead">
+          <rect class="node-box" x="485" y="44" width="150" height="56" rx="10"/>
+          <text class="node-title" x="560" y="68" text-anchor="middle">ai-engineer</text>
+          <text class="node-sub" x="560" y="86" text-anchor="middle">claude --agent · oturum 1</text>
+          <rect class="badge-box" x="494" y="20" width="132" height="17"/>
+          <text class="badge-text" x="560" y="32" text-anchor="middle">koordinatör · opsiyonel rol</text>
+        </g>
+
+        <g class="node" id="n-se">
+          <rect class="node-box" x="332" y="222" width="150" height="56" rx="10"/>
+          <text class="node-title" x="407" y="246" text-anchor="middle">safety-engineer</text>
+          <text class="node-sub" x="407" y="264" text-anchor="middle">claude --agent · oturum 2</text>
+        </g>
+
+        <g class="node" id="n-de">
+          <rect class="node-box" x="690" y="222" width="150" height="56" rx="10"/>
+          <text class="node-title" x="765" y="246" text-anchor="middle">data-engineer</text>
+          <text class="node-sub" x="765" y="264" text-anchor="middle">claude --agent · oturum 3</text>
+        </g>
+
+        <g class="node" id="n-ds">
+          <rect class="node-box" x="485" y="402" width="150" height="56" rx="10"/>
+          <text class="node-title" x="560" y="426" text-anchor="middle">data-scientist</text>
+          <text class="node-sub" x="560" y="444" text-anchor="middle">claude --agent · oturum 4</text>
+        </g>
+
+        <g class="node node-dec" id="n-dec">
+          <rect class="node-box" x="710" y="415" width="132" height="48" rx="10"/>
+          <text class="node-title" x="776" y="436" text-anchor="middle">decisions.md</text>
+          <text class="node-sub" x="776" y="452" text-anchor="middle">kararlar paneli</text>
+        </g>
+      </svg>
+    </div>
+    <div class="caption" id="caption" aria-live="polite"></div>
+  </div>
+
+  <div class="legend">
+    <span><i class="swatch sw-user"></i> sen ↔ ajan (doğrudan)</span>
+    <span><i class="swatch sw-mesh"></i> ajan ↔ ajan (MCP send_message)</span>
+    <span><i class="swatch sw-dec"></i> karar kaydı / eskalasyon</span>
+  </div>
+
+  <h2>Sorularının cevabı</h2>
+  <div class="qa">
+    <div class="qa-card">
+      <h3>Lead ajan olacak mı?</h3>
+      <p><span class="ans">Olabilir; şart değil.</span> Koordinatörlük, bir ajanın <code>.md</code> tanımına eklenen bir prompt bölümü — yapıya gömülü bir hiyerarşi değil. Şapkayı istediğin ajana verirsin, istersen hiç kullanmazsın.</p>
+    </div>
+    <div class="qa-card">
+      <h3>Ben kimlerle konuşabilirim?</h3>
+      <p><span class="ans">Hepsiyle, her zaman.</span> Her blok bağımsız bir Claude Code oturumu; bloğa tıklayıp sohbet penceresine yazarsın. Koordinatör kullansan bile uzmanla aranda aracı yoktur.</p>
+    </div>
+    <div class="qa-card">
+      <h3>Ajanlar bana ulaşabilir mi?</h3>
+      <p><span class="ans">Evet.</span> <code>send_message("user", …)</code> çağırdıklarında UI'da bildirim görürsün. Protokol gereği geri döndürülmesi zor kararlar sana eskale edilir.</p>
+    </div>
+    <div class="qa-card">
+      <h3>Konuşma nasıl karara döner?</h3>
+      <p><span class="ans">Protokolle.</span> <code>ÖNERİ → İTİRAZ → KABUL</code>; uzlaşınca <code>record_decision</code> kararı <code>decisions.md</code>'ye yazar. Uzayan zincire mesaj otobüsü "karara bağlayın" notu düşer.</p>
+    </div>
+  </div>
+
+  <h2>Görünmeyen katman: Quorum uygulaması</h2>
+  <p class="prose muted">Diyagramdaki her çizginin altında aynı üç parça çalışır — hepsi kararlı (GA) yapı taşları, Anthropic API'ye sıfır çağrı:</p>
+  <div class="layers">
+    <div class="layer">
+      <h3>Oturum Yöneticisi</h3>
+      <p>Her blok için <code>claude --agent &lt;isim&gt;</code> sürecini CLI'ın resmî programatik modunda (stream-json) başlatır. Blok = oturum eşlemesi doğum anında kesin; "yeşil yanmama" diye bir şey yok.</p>
+    </div>
+    <div class="layer">
+      <h3>Mesaj Otobüsü</h3>
+      <p>Ajanın <code>send_message</code> çağrısını alır, hedef boşa düşünce mesajı onun sürecine resmî stream-json girdi kanalından iletir. Kuyruk + tur bütçesi burada.</p>
+    </div>
+    <div class="layer">
+      <h3>Hook Sunucusu + MCP</h3>
+      <p>Stop/SubagentStop olaylarıyla kim meşgul kim boşta bilir; MCP araçlarını (<code>send_message</code>, <code>list_agents</code>, <code>record_decision</code>) projeye kurar.</p>
+    </div>
+  </div>
+
+  <p class="foot">Quorum · tasarım referansı: CLAUDE-QUORUM-BRIEF.md · tamamı Claude aboneliğiyle çalışır, API maliyeti yok</p>
+</div>
+
+<script>
+  const SCENARIOS = {
+    direct: {
+      edges: ["e-u-ds"],
+      nodes: ["n-user", "n-ds"],
+      cap: "<strong>1 · Doğrudan konuşma.</strong> data-scientist bloğuna tıklar, sohbet penceresine yazarsın. Arada orkestratör yok — bu, tek kişilik normal bir Claude Code oturumuyla konuşmakla birebir aynı deneyim. Dört ajanın dördü için de geçerli."
+    },
+    lead: {
+      edges: ["e-u-lead", "e-lead-se", "e-lead-de", "e-lead-ds"],
+      nodes: ["n-user", "n-lead", "n-se", "n-de", "n-ds"],
+      cap: "<strong>2 · Koordinatöre delegasyon.</strong> Büyük bir işi koordinatör şapkalı ajana verirsin; o <code>list_agents</code> ile takımı görür, işi bölüp <code>send_message</code> ile dağıtır, sonuçları toplayıp sana raporlar. Bu bir tercih — sen yine istediğin uzmanla doğrudan konuşabilirsin."
+    },
+    peer: {
+      edges: ["e-se-de"],
+      nodes: ["n-se", "n-de"],
+      cap: "<strong>3 · Eşler arası müzakere.</strong> safety-engineer ile data-engineer aralarında tartışır: <code>ÖNERİ → İTİRAZ → KABUL</code>. Koordinatör de sen de devrede değilsin. Zincir 8 mesajı aşarsa otobüs araya \"karara bağlayın ya da kullanıcıya taşıyın\" notu düşer — bu kural prompt'ta değil, mekanizmada."
+    },
+    decision: {
+      edges: ["e-de-dec", "e-se-u"],
+      nodes: ["n-de", "n-dec", "n-se", "n-user"],
+      cap: "<strong>4 · Karar &amp; eskalasyon.</strong> Uzlaşma sağlanınca kazanan ajan <code>record_decision</code> çağırır; karar gerekçesiyle <code>decisions.md</code>'ye ve Kararlar paneline düşer. Geri döndürülmesi zor işlerde (silme, deploy, mimari) ajan karar almaz — soruyu sana eskale eder."
+    }
+  };
+
+  const edges = document.querySelectorAll(".edge");
+  const nodes = document.querySelectorAll(".node");
+  const dots = document.querySelectorAll(".dot");
+  const buttons = document.querySelectorAll(".scen");
+  const caption = document.getElementById("caption");
+
+  function apply(key) {
+    const s = SCENARIOS[key];
+    edges.forEach(e => {
+      const active = s.edges.includes(e.id);
+      e.classList.toggle("active", active);
+      if (e.classList.contains("hidden-edge") || e.id === "e-de-dec" || e.id === "e-se-u") {
+        e.style.opacity = active ? "" : "0";
+      }
+    });
+    nodes.forEach(n => n.classList.toggle("dim", !s.nodes.includes(n.id)));
+    dots.forEach(d => d.classList.toggle("on", s.edges.includes(d.dataset.for)));
+    buttons.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.s === key)));
+    caption.innerHTML = s.cap;
+  }
+
+  buttons.forEach(b => b.addEventListener("click", () => apply(b.dataset.s)));
+  apply("direct");
+</script>
