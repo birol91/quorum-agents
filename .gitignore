@@ -1,0 +1,36 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Build output
+dist/
+out/
+release/
+
+# Runtime decision store + screenshots
+example/.quorum/
+.quorum/
+*.png
+!docs/*.png
+!docs/*.gif
+!logo.png
+!build/icon.png
+
+# Working files that are not part of the app
+TUBITAK_*.pdf
+agentboard-agents.xlsx
+
+# Secrets — never commit (this file carries a GitHub token)
+.env
+.env.*
+!.env.example
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# OS
+.DS_Store
+
+# Logs
+*.log
